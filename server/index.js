@@ -98,28 +98,37 @@ wss.on('connection', (connection, req) => {
 
     [...wss.clients].forEach(client => {
         client.send(JSON.stringify({
-            online: [...wss.clients].map(c => ({ userId: c.userId, username: c.username }))
-        }))
-    })
+            online: [...wss.clients].map(c => ({ userId: c.userId, username: c.username })),
+        }));
+    });
+
     //console.log([...wss.clients].map(client => ({ userId: client.userId, username: client.username })));
 
 
     connection.on('message', async (message) => {
-
         const messageData = JSON.parse(message.toString());
         const { recipient, text } = messageData;
+
         if (recipient && text) {
-            const messageInfo = await Message.create({
+            const messageDoc = await Message.create({
                 sender: connection.userId,
                 recipient,
                 text
-            })
-            try { [...wss.clients].filter(c => c.userId === recipient).forEach(c => c.send(JSON.stringify({ text, sender: connection.userId, recipient, id: messageInfo._id }))); }
-            catch {
-                console.log(error)
-            }
+            });
+
+            console.log('created message');
+
+            [...wss.clients]
+                .filter(c => c.userId === recipient)
+                .forEach(c => c.send(JSON.stringify({
+                    text,
+                    sender: connection.userId,
+                    recipient,
+                    _id: messageDoc._id
+                })));
         }
     });
+
     connection.on('close', (code, reason) => {
         console.log(`Connection closed. Code: ${code}, Reason: ${reason}`);
     });
