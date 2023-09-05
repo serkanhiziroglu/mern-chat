@@ -16,7 +16,7 @@ export default function RegisterAndLoginForm() {
 
     }
     return (
-        <div className="bg-blue-500 h-screen flex items-center">
+        <div className="bg-blue-300 h-screen flex items-center">
             <form className="w-64 mx-auto" onSubmit={handleSubmit}>
                 <input
                     value={username}

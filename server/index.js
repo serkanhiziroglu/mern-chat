@@ -7,6 +7,8 @@ const jwt = require('jsonwebtoken')
 const bcrypt = require('bcryptjs')
 const bcryptSalt = bcrypt.genSaltSync()
 const cookieParser = require('cookie-parser')
+const ws = require('ws')
+const Message = require('./models/Message')
 dotenv.config();
 mongoose.connect(process.env.MONGO_URL)
 
@@ -75,7 +77,50 @@ app.post('/login', async (req, res) => {
     }
 });
 
-app.listen(4040)
+const server = app.listen(4040)
 
-//9Lt8dAnPlkkqiAmC
+const wss = new ws.WebSocketServer({ server })
+wss.on('connection', (connection, req) => {
+    const { cookie = '' } = req.headers;
+    const tokenString = cookie.split(';').find(str => str.startsWith('token='));
+    const [, token] = tokenString ? tokenString.split('=') : [];
 
+    if (token) {
+        jwt.verify(token, process.env.JWT_SECRET, {}, (error, userInfo) => {
+            if (error) throw error
+            const { userId, username } = userInfo;
+            connection.userId = userId
+            connection.username = username
+        })
+    }
+
+
+
+    [...wss.clients].forEach(client => {
+        client.send(JSON.stringify({
+            online: [...wss.clients].map(c => ({ userId: c.userId, username: c.username }))
+        }))
+    })
+    //console.log([...wss.clients].map(client => ({ userId: client.userId, username: client.username })));
+
+
+    connection.on('message', async (message) => {
+
+        const messageData = JSON.parse(message.toString());
+        const { recipient, text } = messageData;
+        if (recipient && text) {
+            const messageInfo = await Message.create({
+                sender: connection.userId,
+                recipient,
+                text
+            })
+            try { [...wss.clients].filter(c => c.userId === recipient).forEach(c => c.send(JSON.stringify({ text, sender: connection.userId, recipient, id: messageInfo._id }))); }
+            catch {
+                console.log(error)
+            }
+        }
+    });
+    connection.on('close', (code, reason) => {
+        console.log(`Connection closed. Code: ${code}, Reason: ${reason}`);
+    });
+}); 
