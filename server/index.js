@@ -22,7 +22,7 @@ app.use(cookieParser())
 
 const user = require('./models/User');
 
-const mongoUrl = 'mongodb+srv://serkan:9Lt8dAnPlkkqiAmC@cluster0.dzlq7cc.mongodb.net/?retryWrites=true&w=majority'
+
 
 app.get('/test', (req, res) => {
     res.json('test ok!!')
